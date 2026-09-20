@@ -45,6 +45,23 @@ of a deprecated function per unique call site, making it ideal to alert
 users of all deprecated uses across the code base, rather than just
 whatever happens to execute first.
 
+## 关键语义（中文说明）
+
+- **namespace 必填**：`depd()` 不传参数或传入 falsy 值（如 `undefined`、`null`、`''`）会抛出 `TypeError`，消息为 `argument namespace is required`。
+- **stderr 消息与 call site**：默认向 stderr 输出 `namespace deprecated message`，非 TRACE 模式下非 TTY 行尾附带 ` at <相对路径>:<行>:<列>`（相对 `process.cwd()` 的 call site）。
+- **NO_DEPRECATION 抑制**：`process.env.NO_DEPRECATION` 按命名空间抑制 stderr 输出；比较大小写不敏感（`NEW-LIB` 可抑制 `new-lib`），`*` 匹配任意命名空间，多个命名空间用逗号或空格分隔。
+- **仍 emit deprecation 事件**：即使命名空间被 `NO_DEPRECATION` 抑制，只要存在 `process.on('deprecation')` 监听器，仍会 emit `DeprecationError`（此时不写 stderr）。
+- **TRACE_DEPRECATION 栈**：`process.env.TRACE_DEPRECATION` 命中的命名空间输出多行 `at …` 完整调用栈；未命中的命名空间仍走单行 `… deprecated … at …` 格式。
+- **一次性告警**：同一 call site 只告警一次，重复调用不会重复写 stderr。
+
+## 测试
+
+```sh
+$ npm test
+```
+
+当前全部通过：`89 passing`（另有 22 个 browserify 环境用例 pending）。
+
 The deprecation warnings from this module also include the file and line
 information for the call into the module that the deprecated function was
 in.
