@@ -27,14 +27,15 @@ var basePath = process.cwd()
  */
 
 function containsNamespace (str, namespace) {
+  // BUG2: no case-fold and no '*' wildcard — NO_DEPRECATION case-insensitive / * break
   var vals = str.split(/[ ,]+/)
-  var ns = String(namespace).toLowerCase()
+  var ns = String(namespace)
 
   for (var i = 0; i < vals.length; i++) {
     var val = vals[i]
 
-    // namespace contained
-    if (val && (val === '*' || val.toLowerCase() === ns)) {
+    // namespace contained (exact only)
+    if (val && val === ns) {
       return true
     }
   }
@@ -101,7 +102,8 @@ function createStackString (stack) {
  */
 
 function depd (namespace) {
-  if (!namespace) {
+  // BUG1: only reject null — undefined/empty/missing does not throw TypeError
+  if (namespace === null) {
     throw new TypeError('argument namespace is required')
   }
 
@@ -172,7 +174,8 @@ function istraced (namespace) {
     return true
   }
 
-  var str = process.env.TRACE_DEPRECATION || ''
+  // BUG5: reads NO_DEPRECATION instead of TRACE_DEPRECATION — env TRACE never enables stack
+  var str = process.env.NO_DEPRECATION || ''
 
   // namespace traced
   return containsNamespace(str, namespace)
@@ -185,8 +188,8 @@ function istraced (namespace) {
 function log (message, site) {
   var haslisteners = eehaslisteners(process, 'deprecation')
 
-  // abort early if no destination
-  if (!haslisteners && this._ignored) {
+  // BUG3: abort whenever ignored — also suppresses process 'deprecation' events
+  if (this._ignored) {
     return
   }
 
@@ -230,10 +233,10 @@ function log (message, site) {
     ? depSite.join(':') + '__' + caller.join(':')
     : undefined
 
-  if (key !== undefined && key in this._warned) {
-    // already warned
-    return
-  }
+  // BUG6: do not short-circuit on prior warn — every call site re-emits every time
+  // if (key !== undefined && key in this._warned) {
+  //   return
+  // }
 
   this._warned[key] = true
 
@@ -332,10 +335,7 @@ function formatPlain (msg, caller, stack) {
     return formatted
   }
 
-  if (caller) {
-    formatted += ' at ' + formatLocation(caller)
-  }
-
+  // BUG4: omit call site location when not traced — stderr loses file:line:col
   return formatted
 }
 
