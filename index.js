@@ -27,15 +27,14 @@ var basePath = process.cwd()
  */
 
 function containsNamespace (str, namespace) {
-  // BUG2: no case-fold and no '*' wildcard — NO_DEPRECATION case-insensitive / * break
   var vals = str.split(/[ ,]+/)
-  var ns = String(namespace)
+  var ns = String(namespace).toLowerCase()
 
   for (var i = 0; i < vals.length; i++) {
-    var val = vals[i]
+    var val = vals[i].toLowerCase()
 
-    // namespace contained (exact only)
-    if (val && val === ns) {
+    // namespace contained
+    if (val && (val === '*' || val === ns)) {
       return true
     }
   }
@@ -102,8 +101,7 @@ function createStackString (stack) {
  */
 
 function depd (namespace) {
-  // BUG1: only reject null — undefined/empty/missing does not throw TypeError
-  if (namespace === null) {
+  if (!namespace) {
     throw new TypeError('argument namespace is required')
   }
 
@@ -170,12 +168,11 @@ function isignored (namespace) {
 
 function istraced (namespace) {
   if (process.traceDeprecation) {
-    // --trace-deprecation support
+  // --trace-deprecation support
     return true
   }
 
-  // BUG5: reads NO_DEPRECATION instead of TRACE_DEPRECATION — env TRACE never enables stack
-  var str = process.env.NO_DEPRECATION || ''
+  var str = process.env.TRACE_DEPRECATION || ''
 
   // namespace traced
   return containsNamespace(str, namespace)
@@ -188,8 +185,8 @@ function istraced (namespace) {
 function log (message, site) {
   var haslisteners = eehaslisteners(process, 'deprecation')
 
-  // BUG3: abort whenever ignored — also suppresses process 'deprecation' events
-  if (this._ignored) {
+  // abort early if no listeners and ignored
+  if (!haslisteners && this._ignored) {
     return
   }
 
@@ -233,10 +230,10 @@ function log (message, site) {
     ? depSite.join(':') + '__' + caller.join(':')
     : undefined
 
-  // BUG6: do not short-circuit on prior warn — every call site re-emits every time
-  // if (key !== undefined && key in this._warned) {
-  //   return
-  // }
+  if (key !== undefined && key in this._warned) {
+    // already warned
+    return
+  }
 
   this._warned[key] = true
 
@@ -335,7 +332,11 @@ function formatPlain (msg, caller, stack) {
     return formatted
   }
 
-  // BUG4: omit call site location when not traced — stderr loses file:line:col
+  // add call location
+  if (caller) {
+    formatted += ' at ' + formatLocation(caller)
+  }
+
   return formatted
 }
 

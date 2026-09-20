@@ -2,6 +2,19 @@
 
 # depd
 
+## 中文说明（关键语义）
+
+- **namespace 必填**：`depd(namespace)` 缺参或传入 falsy 值会抛出 `TypeError`（消息匹配 `/namespace.*required/`）。
+- **stderr 消息 + call site**：默认向 stderr 写入 `namespace deprecated message`，非 TRACE 模式下行尾附带相对 `process.cwd()` 的 `file:line:col` 调用位置（TTY 下为彩色输出）。
+- **NO_DEPRECATION 抑制**：`process.env.NO_DEPRECATION` 按命名空间抑制 stderr 输出，比较大小写不敏感，支持 `*` 全匹配，多个命名空间用逗号或空格分隔。
+- **仍 emit deprecation 事件**：即使命名空间被 `NO_DEPRECATION` 抑制，只要存在 `process.on('deprecation')` 监听器，仍会 `emit` `DeprecationError`（仅「无监听器且被忽略」时才提前返回）。
+- **TRACE_DEPRECATION 栈**：`process.env.TRACE_DEPRECATION` 命中的命名空间输出多行 `at …` 调用栈；未命中的命名空间仍走单行输出。
+- **一次性告警**：同一 call site 只告警一次，重复调用不会重复写 stderr。
+
+## 测试
+
+`npm test`（mocha）当前结果：**89 passing, 22 pending**（pending 为 browserify 环境规格）。
+
 [![NPM Version][npm-version-image]][npm-url]
 [![NPM Downloads][npm-downloads-image]][npm-url]
 [![Node.js Version][node-image]][node-url]
